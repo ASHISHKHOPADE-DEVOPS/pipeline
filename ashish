@@ -1,0 +1,94 @@
+# CI/CD Pipeline for Docker and Kubernetes Deployment
+
+stages:
+  - build
+  - push
+  - deploy
+
+variables:
+  DOCKERHUB_USER: "your_dockerhub_username"
+  DOCKERHUB_REPO: "your_repo_name"
+  KUBECONFIG: "/path/to/kubeconfig"
+
+# Build Webapp Docker Image
+build_webapp:
+  stage: build
+  script:
+    - docker build -t $DOCKERHUB_USER/$DOCKERHUB_REPO:webapp .
+    - docker images
+  tags:
+    - docker
+
+# Build MySQL Docker Image
+build_mysql:
+  stage: build
+  script:
+    - docker build -t $DOCKERHUB_USER/$DOCKERHUB_REPO:mysql -f Dockerfile-mysql .
+    - docker images
+  tags:
+    - docker
+
+# Build Proxy Docker Image
+build_proxy:
+  stage: build
+  script:
+    - docker build -t $DOCKERHUB_USER/$DOCKERHUB_REPO:proxy -f Dockerfile-proxy .
+    - docker images
+  tags:
+    - docker
+
+# Push Webapp Image to DockerHub
+push_webapp:
+  stage: push
+  script:
+    - echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin
+    - docker push $DOCKERHUB_USER/$DOCKERHUB_REPO:webapp
+  tags:
+    - docker
+  only:
+    - master
+
+# Push MySQL Image to DockerHub
+push_mysql:
+  stage: push
+  script:
+    - echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin
+    - docker push $DOCKERHUB_USER/$DOCKERHUB_REPO:mysql
+  tags:
+    - docker
+  only:
+    - master
+
+# Push Proxy Image to DockerHub
+push_proxy:
+  stage: push
+  script:
+    - echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin
+    - docker push $DOCKERHUB_USER/$DOCKERHUB_REPO:proxy
+  tags:
+    - docker
+  only:
+    - master
+
+# Deploy to Kubernetes (Webapp, MySQL, Proxy)
+deploy_to_k8s:
+  stage: deploy
+  script:
+    # Deploy Frontend (Webapp)
+    - kubectl apply -f kubernetes/webapp-deployment.yaml
+    - kubectl apply -f kubernetes/webapp-service.yaml
+    
+    # Deploy MySQL Backend
+    - kubectl apply -f kubernetes/mysql-deployment.yaml
+    - kubectl apply -f kubernetes/mysql-service.yaml
+    
+    # Deploy Proxy
+    - kubectl apply -f kubernetes/proxy-deployment.yaml
+    - kubectl apply -f kubernetes/proxy-service.yaml
+    
+    # Verify services
+    - kubectl get svc
+  tags:
+    - k8s
+  only:
+    - master
